@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+folder=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
+if [ -x "$folder"/build/Diskfolio.app/Contents/MacOS/Diskfolio ]; then
+  executable="$folder/build/Diskfolio.app/Contents/MacOS/Diskfolio"
+elif [ -x "$folder"/Diskfolio.app/Contents/MacOS/Diskfolio ]; then
+  executable="$folder/Diskfolio.app/Contents/MacOS/Diskfolio"
+else
+  printf '%s\n' 'Diskfolio.app not found. Run ./build-app.sh first.' >&2
+  exit 1
+fi
+exec "$executable" "$@"

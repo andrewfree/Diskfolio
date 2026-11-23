@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Diskfolio measures extra architecture slices and language resources in your Mac apps.">
+  <meta name="theme-color" content="#efefeb">
+  <title>Diskfolio · See what your apps carry</title>
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="demo.js" defer></script>
+</head>
+<body id="top">
+  <header class="site-header wrap">
+    <a href="#top" class="brand" aria-label="Diskfolio home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Diskfolio
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#preview">Preview</a>
+      <a href="#features">Features</a>
+      <a class="nav-download" href="downloads/Diskfolio-macOS.zip" download>Download <span aria-hidden="true">↘</span></a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap" aria-labelledby="headline">
+      <div class="intro">
+        <div class="platform"><span class="status-dot"></span> A STORAGE UTILITY FOR MAC</div>
+        <h1 id="headline">See what<br>your apps<br><em>carry.</em></h1>
+        <p>Check which Intel slices and unused language resources can be removed from your apps. Review the verified copies before choosing what to replace.</p>
+        <div class="hero-actions">
+          <a class="primary" href="#build">Build from source <span aria-hidden="true">↘</span></a>
+          <a class="demo-link" href="#preview">Try the preview <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="requirements">Apple Silicon · macOS 13 or later</p>
+      </div>
+
+      <div class="showcase" id="preview" aria-label="Interactive Diskfolio preview">
+        <div class="app-window">
+          <div class="window-bar">
+            <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>Diskfolio</span>
+            <span class="sample-tag">Sample data</span>
+          </div>
+          <div class="app-pane">
+            <div class="app-summary">
+              <p class="app-path" id="sample-label">AUTOMATICALLY SELECTED</p>
+              <h2 id="sample-total" aria-live="polite">7.28 GB</h2>
+              <div id="sample-track" class="size-track" aria-hidden="true"><i></i><i></i></div>
+              <div class="sample-scale"><span id="sample-identified">7.28 GB identified</span><span>3 apps</span></div>
+            </div>
+            <div class="sample-options">
+              <label class="sample-option"><input id="show-architecture" type="checkbox" checked>
+                <span>Extra architecture</span>
+                <strong id="architecture-size">5.82 GB</strong>
+              </label>
+              <label class="sample-option"><input id="show-language" type="checkbox" checked>
+                <span>Other languages</span>
+                <strong id="language-size">1.46 GB</strong>
+              </label>
+            </div>
+            <h3 class="sample-heading">By app</h3>
+            <div id="sample-list" class="sample-list"></div>
+          </div>
+        </div>
+        <p class="preview-caption"><span aria-hidden="true">↳</span> Toggle either resource type to see its share of the sample total.</p>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="wrap">
+        <div class="section-heading">
+          <p class="section-label">INSIDE DISKFOLIO</p>
+          <h2>Two kinds of extra space.</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <span class="feature-icon mint-icon" aria-hidden="true">▦</span>
+            <h3>Extra architecture</h3>
+            <p>Measure Intel slices in universal binaries, including frameworks and helpers. Diskfolio excludes apps with Intel-only loadable code from the architecture estimate.</p>
+          </article>
+          <article>
+            <span class="feature-icon orange-icon" aria-hidden="true">◇</span>
+            <h3>Other languages</h3>
+            <p>See the size of recognized language resources. Diskfolio keeps system and app-specific preferred languages, English, shared Base resources, and app fallback languages.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="questions wrap" aria-labelledby="questions-heading">
+      <div>
+        <p class="section-label">BEFORE YOU SCAN</p>
+        <h2 id="questions-heading">Good to know.</h2>
+      </div>
+      <div class="question-list">
+        <details>
+          <summary>Where does Diskfolio look?</summary>
+          <p>It inspects app bundles in Applications and ~/Applications, including apps in subfolders. The selection and analysis run on your Mac.</p>
+        </details>
+        <details>
+          <summary>Do the bars show space I can free?</summary>
+          <p>Diskfolio checks one temporary copy at a time and shows the logical bytes in apps that pass signature verification. The app rows share a separate scale so you can compare them. Actual reclaimed space depends on APFS and how the apps are packaged. Free Space lets you review the verified apps before applying changes.</p>
+        </details>
+        <details>
+          <summary>How does Diskfolio request permission?</summary>
+          <p>If macOS asks to allow app updates, respond to its prompt. The Free Space screen opens App Management in System Settings and gives you a Diskfolio icon to drag into the app list.</p>
+        </details>
+        <details id="build" open>
+          <summary>How do I build Diskfolio?</summary>
+          <p>Run <code>./build-app.sh</code> from the repository on an Apple Silicon Mac with macOS 13 or later and the Xcode command-line developer tools. Open <code>build/Diskfolio.app</code> when the script finishes.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <a href="#top" class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Diskfolio</a>
+      <a class="demo-link" href="#build">Build from source <span aria-hidden="true">↗</span></a>
+    </div>
+  </footer>
+</body>
+</html>
