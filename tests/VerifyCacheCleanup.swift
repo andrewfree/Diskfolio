@@ -30,20 +30,62 @@ struct VerifyCacheCleanup {
         precondition(review.skipped.count == 1)
         let stale = review.candidates.first { $0.url == changed }!
         try Data("new cache contents".utf8).write(to: changedFile)
-        precondition(CacheCleanup.moveToTrash([stale]).skipped.count == 1)
-        precondition(manager.fileExists(atPath: changedFile.path))
-
         let fresh = review.candidates.first { $0.url == cache }!
-        guard let trash = try CacheCleanup.moveToTrash(fresh) else {
-            fatalError("The fixture did not receive a Trash destination.")
-        }
+        let store = CleanupHistory(home: home)
+        let receipt = try store.move([stale, fresh], reviewedIssues: review.skipped)
+        precondition(receipt.entries.filter { $0.bytes > 0 }.count == 1)
+        precondition(receipt.entries.count == 3)
+        precondition(manager.fileExists(atPath: changedFile.path))
         precondition(!manager.fileExists(atPath: cache.path))
-        try manager.moveItem(at: trash, to: cache)
+
+        let reopened = CleanupHistory(home: home)
+        let saved = try reopened.history()
+        precondition(saved.map(\.id) == [receipt.id])
+        let copies = try reopened.recovery()
+        precondition(copies.count == 1 && copies[0].bytes == Int64(bytes.count))
+
+        try manager.createDirectory(at: cache, withIntermediateDirectories: false)
+        let regenerated = cache.appendingPathComponent("regenerated")
+        try bytes.write(to: regenerated)
+        do {
+            try reopened.restore(copies[0])
+            fatalError("Restore overwrote a regenerated cache.")
+        } catch {}
+        precondition(manager.fileExists(atPath: regenerated.path))
+        try manager.removeItem(at: cache)
+        try reopened.restore(copies[0])
         let restored = try Data(contentsOf: cache.appendingPathComponent("cached"))
-        let settingsAfter = try Data(contentsOf: settings)
         precondition(restored == bytes)
+
+        let rescanned = CacheCleanup.review(home: home)
+        _ = try reopened.move([rescanned.candidates.first { $0.url == cache }!])
+        let deletable = try reopened.recovery()
+        let claimed = home.appendingPathComponent("Library/Application Support/Diskfolio/CacheRecovery")
+            .appendingPathComponent(deletable[0].id.uuidString)
+        try manager.moveItem(at: claimed.appendingPathComponent("cache"), to: claimed.appendingPathComponent("deleting"))
+        let interrupted = try reopened.recovery()
+        precondition(interrupted[0].deleting)
+        try reopened.delete(interrupted[0])
+        let remaining = try reopened.recovery()
+        precondition(remaining.isEmpty)
+        let settingsAfter = try Data(contentsOf: settings)
         precondition(settingsAfter == bytes)
         precondition(manager.fileExists(atPath: ignored.appendingPathComponent("cached").path))
-        print("Cache selection, stale review, linked path refusal, and Trash round trip passed.")
+
+        let applications = home.appendingPathComponent("Applications", isDirectory: true)
+        try manager.createDirectory(at: applications, withIntermediateDirectories: false)
+        let input = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
+        let installed = applications.appendingPathComponent("Fixture.app", isDirectory: true)
+        try manager.copyItem(at: input, to: installed)
+        let appRecovery = home.appendingPathComponent("Library/Application Support/Diskfolio/Recovery", isDirectory: true)
+        let plan = try Cleanup.prepare(installed, groups: [.language], roots: [applications], recovery: appRecovery)
+        _ = try Cleanup.apply(plan, keepBackup: true)
+        let appCopies = try reopened.recovery()
+        precondition(appCopies.count == 1 && appCopies[0].app)
+        try reopened.restore(appCopies[0], roots: [applications])
+        let restoredApps = try reopened.recovery()
+        precondition(restoredApps.isEmpty)
+        precondition(manager.fileExists(atPath: installed.appendingPathComponent("Contents/Resources/fr.lproj/Example.txt").path))
+        print("Persistent receipts, cache restore conflict, interrupted deletion, and original app restore passed.")
     }
 }

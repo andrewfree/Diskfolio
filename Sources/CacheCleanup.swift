@@ -16,6 +16,7 @@ enum CacheCleanup {
         let label: String
         let url: URL
         let bytes: Int64
+        let running: Bool
         fileprivate let bundleID: String
         fileprivate let home: URL
         fileprivate let state: [String: FileIdentity]
@@ -26,10 +27,6 @@ enum CacheCleanup {
         var skipped: [String] = []
     }
 
-    struct Receipt: Sendable {
-        var moved = 0
-        var skipped: [String] = []
-    }
 
     private static let browserCaches = ["Cache", "Code Cache", "GPUCache"]
     private static let targets = [
@@ -55,6 +52,7 @@ enum CacheCleanup {
                     ? try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
                         .filter { isBrowserProfile($0.lastPathComponent) }
                     : [root]
+                let running = !NSRunningApplication.runningApplications(withBundleIdentifier: target.bundleID).isEmpty
                 for parent in parents {
                     for cache in target.caches {
                         let url = parent.appendingPathComponent(cache, isDirectory: true)
@@ -65,7 +63,7 @@ enum CacheCleanup {
                             guard bytes > 0 else { continue }
                             review.candidates.append(Candidate(
                                 app: target.app, label: label, url: url, bytes: bytes,
-                                bundleID: target.bundleID, home: home, state: state
+                                running: running, bundleID: target.bundleID, home: home, state: state
                             ))
                         } catch {
                             review.skipped.append("\(target.app) · \(label): \(error.localizedDescription)")
@@ -83,28 +81,41 @@ enum CacheCleanup {
         return review
     }
 
-    static func moveToTrash(_ candidates: [Candidate]) -> Receipt {
-        var receipt = Receipt()
-        for candidate in candidates {
-            do {
-                try moveToTrash(candidate)
-                receipt.moved += 1
-            } catch {
-                receipt.skipped.append("\(candidate.app) · \(candidate.label): \(error.localizedDescription)")
-            }
-        }
-        return receipt
-    }
-
-    @discardableResult
-    static func moveToTrash(_ candidate: Candidate) throws -> URL? {
+    static func archive(_ candidate: Candidate, to payload: URL) throws {
         try checkClosed(candidate)
         let (_, state) = try snapshot(candidate.url, under: candidate.home)
         guard state == candidate.state else { throw CacheError.changed }
         try checkClosed(candidate)
-        var destination: NSURL?
-        try FileManager.default.trashItem(at: candidate.url, resultingItemURL: &destination)
-        return destination as URL?
+        try renameExclusively(candidate.url, payload)
+    }
+
+    static func restore(_ path: URL, from payload: URL, home: URL) throws {
+        guard path.path.hasPrefix(home.path + "/"), path.standardizedFileURL.path == path.path,
+              let target = targets.first(where: { target in
+                  let base = home.appendingPathComponent(target.folder).path
+                  guard path.path.hasPrefix(base + "/") else { return false }
+                  let names = path.path.dropFirst(base.count + 1).split(separator: "/")
+                  guard let cache = names.last, target.caches.contains(String(cache)) else { return false }
+                  return target.profiles
+                      ? names.count == 2 && isBrowserProfile(String(names[0]))
+                      : names.count == 1
+              }) else { throw CacheError.unsafePath }
+        try checkPath(path.deletingLastPathComponent(), under: home)
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: target.bundleID).isEmpty else {
+            throw CacheError.appOpen(target.app)
+        }
+        try renameExclusively(payload, path)
+    }
+
+    static func renameExclusively(_ from: URL, _ to: URL) throws {
+        let status = from.withUnsafeFileSystemRepresentation { source in
+            to.withUnsafeFileSystemRepresentation { destination -> Int32 in
+                guard let source, let destination else { return EINVAL }
+                return renamex_np(source, destination, UInt32(RENAME_EXCL)) == 0 ? 0 : errno
+            }
+        }
+        if status == EEXIST { throw CacheError.destinationExists }
+        if status != 0 { throw NSError(domain: NSPOSIXErrorDomain, code: Int(status)) }
     }
 
     private static func checkClosed(_ candidate: Candidate) throws {
@@ -171,12 +182,13 @@ enum CacheCleanup {
     }
 
     private enum CacheError: LocalizedError {
-        case changed, unsafePath, appOpen(String)
+        case changed, unsafePath, destinationExists, appOpen(String)
 
         var errorDescription: String? {
             switch self {
             case .changed: "Cache changed. Preview it again."
             case .unsafePath: "Cache includes a linked, unreadable, or unsupported path."
+            case .destinationExists: "A cache already exists there. Move it to recovery before restoring."
             case let .appOpen(app): "Quit \(app) before cleaning its cache."
             }
         }

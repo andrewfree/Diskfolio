@@ -1,6 +1,6 @@
 # Diskfolio
 
-Diskfolio is a native macOS utility for removing extra Intel slices and unused translations from installed apps. It also previews app caches before moving selected folders to the Trash.
+Diskfolio is a native macOS utility for removing extra Intel slices and unused translations from installed apps. It also previews app caches before moving selected folders to Recovery.
 
 ## Build and test
 
@@ -22,7 +22,7 @@ The app and site icons are generated from [`scripts/make-icon.swift`](scripts/ma
 
 1. Open Diskfolio. It scans **Applications** and **~/Applications**, then prepares one temporary copy at a time to check what can be cleaned.
 2. Choose the categories you want to check. Diskfolio keeps Apple Silicon code, English and Base resources, your preferred languages, and each app's declared fallback language.
-3. Choose **Free Space**, then **Review Cleanup**. **All apps** is the default. Expand the skipped list to see why an app was excluded.
+3. Choose **Review App Size**, then **Review Cleanup**. **All apps** is the default. Expand the skipped list to see why an app was excluded.
 4. Review the copies and confirm the replacements. Quit the apps and their helpers first.
 
 The preview checks the original and prepared copies against the original app's code signature requirement. Diskfolio skips files whose Mach-O slices target different platforms. It also preserves code needed by Intel-only components and skips apps it cannot read or write. App Management controls replacement. Your user account also needs write access to the app and its containing folder. Use **Open App Management** in the cleanup sheet if macOS denies a replacement.
@@ -35,19 +35,15 @@ The preview reports logical file content, and preparing copies uses temporary di
 
 ## Clean app caches
 
-Choose **App Caches** to review recognized cache folders for Chrome, Edge, Brave, and VS Code. Quit the apps you want to clean, select their caches, and confirm **Move to Trash**. Diskfolio rechecks the reviewed folders before moving them. Check the Trash if you need a folder back. The listed sizes describe the selected files, and the folders still occupy space until the Trash is emptied.
+Choose **App Caches** to review recognized cache folders for Chrome, Edge, Brave, and VS Code. Quit the apps you want to clean, rescan, and select the folders. Confirm **Move to Recovery**. Diskfolio rechecks the reviewed folders before moving them.
 
-## Restore an original
+## Review history and recover files
 
-Recovery copies are kept by default. Use **Reveal recovery copies** or open `~/Library/Application Support/Diskfolio/Recovery` in Finder.
+Open **History & Recovery** to see past runs and copies you can recover. Select copies and choose **Restore Selected** to put them back. If the app has rebuilt a cache, move the new cache to recovery first. To restore an original app, quit the app and its helpers. Diskfolio checks that the installed copy is still the replacement it created.
 
-1. Find the original bundle and read `recovery.json` beside it. The `installedPath` field identifies where it belongs.
-2. Quit the installed app and its helpers, then move the installed copy to the Trash.
-3. Move the original back to the recorded path. Open it and verify it works before emptying the Trash.
+Recovery copies still occupy disk space. Use **Delete Selected** when you no longer need the copies. Diskfolio shows the change in free space on the volume after deletion. Other activity on the volume can affect that number.
 
-When you have verified an installed copy and no longer need its original, you can move that recovery folder to the Trash. **Replace & Discard Originals** skips normal recovery and permanently discards originals that still match the reviewed apps.
-
-Diskfolio uses a separate `Staging` folder while working. An interrupted replacement can leave an original there. If the workspace has a recovery record, use `stat -f '%i' /path/to/the/staged.app` and compare the inode to `original.inode` in `recovery.json`. A match identifies the displaced original. Preserve the files if the record or identity is unclear.
+If an app replacement was interrupted, an original can remain in the separate `Staging` folder. If the workspace has a recovery record, use `stat -f '%i' /path/to/the/staged.app` and compare the inode to `original.inode` in `recovery.json`. A match identifies the displaced original. Preserve the files if the record or identity is unclear.
 
 ## Use the command line
 

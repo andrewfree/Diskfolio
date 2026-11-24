@@ -19,10 +19,11 @@ struct CleanupView: View {
     @State private var keepOriginal = true
     @State private var progress = (done: 0, count: 0, name: "")
     @State private var stop: (() -> Void)?
+    @State private var historyError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("Free Space").font(.system(size: 26, weight: .semibold))
+            Text("App Size").font(.system(size: 26, weight: .semibold))
             switch phase {
             case .choose:
                 Text("Review all eligible apps in one batch, or choose a single app.")
@@ -66,6 +67,7 @@ struct CleanupView: View {
             case .applying:
                 progressView("Cleaning apps", detail: "Verifying and replacing each approved app.")
             case let .done(result):
+                if let historyError { Text(historyError).foregroundStyle(.orange) }
                 CleanupResultSummary(result: result)
                 CleanupIssues(issues: result.previewIssues + result.issues, title: "to review")
                 if let backup = result.receipts.compactMap(\.backup).first {
@@ -154,11 +156,25 @@ struct CleanupView: View {
         phase = .applying
         progress = (0, preview.apps.count, preview.apps.first?.url.lastPathComponent ?? "")
         let worker = Task.detached(priority: .userInitiated) {
-            CleanupBatch.apply(preview, groups: groups, keepBackup: keepBackup, progress: updateProgress)
+            let result = CleanupBatch.apply(preview, groups: groups, keepBackup: keepBackup, progress: updateProgress)
+            let entries = result.receipts.map {
+                CleanupHistory.Entry(name: $0.app.lastPathComponent, bytes: $0.bytes,
+                                     detail: $0.warning ?? ($0.backup == nil ? "Original discarded" : "Original kept in recovery"),
+                                     recoveryID: $0.backup.flatMap { UUID(uuidString: $0.deletingLastPathComponent().lastPathComponent) })
+            } + (result.previewIssues + result.issues).map {
+                CleanupHistory.Entry(name: $0.app.lastPathComponent, bytes: 0, detail: $0.reason)
+            }
+            do {
+                try CleanupHistory().save(.init(title: "App Size cleanup", entries: entries))
+                return (result, nil as String?)
+            } catch {
+                return (result, "Couldn’t save cleanup history. " + error.localizedDescription)
+            }
         }
         stop = { worker.cancel() }
         Task {
-            let result = await worker.value
+            let (result, historyError) = await worker.value
+            self.historyError = historyError
             stop = nil
             phase = .done(result)
         }

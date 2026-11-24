@@ -33,17 +33,76 @@ struct CleanupPlan: Sendable {
 }
 
 struct CleanupReceipt: Sendable {
+    let app: URL
     let bytes: Int64
     let backup: URL?
     let warning: String?
 }
 
 enum Cleanup {
-    private struct RecoveryRecord: Encodable {
+    private struct RecoveryRecord: Codable {
         let installedPath: String
         let original: FileIdentity
         let replacement: FileIdentity
         let preparedAt: Date
+    }
+
+    struct SavedApp: Sendable {
+        let source: URL
+        let payload: URL
+        let date: Date
+        let deleting: Bool
+    }
+
+    static func savedApp(in folder: URL) throws -> SavedApp? {
+        let metadata = folder.appendingPathComponent("recovery.json")
+        guard let info = Scanner.metadata(metadata), (info.st_mode & S_IFMT) == S_IFREG,
+              info.st_uid == geteuid() else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let record = try decoder.decode(RecoveryRecord.self, from: Data(contentsOf: metadata))
+        let source = URL(fileURLWithPath: record.installedPath, isDirectory: true)
+        guard source.path == record.installedPath, source.pathExtension.lowercased() == "app" else { return nil }
+        let deleting = folder.appendingPathComponent("deleting")
+        for (payload, pending) in [(deleting, true), (folder.appendingPathComponent(source.lastPathComponent), false)] {
+            guard let info = Scanner.metadata(payload), Scanner.isDirectory(info),
+                  info.st_dev == record.original.device, info.st_ino == record.original.inode else { continue }
+            return SavedApp(source: source, payload: payload, date: record.preparedAt, deleting: pending)
+        }
+        return nil
+    }
+
+    static func restoreSavedApp(in folder: URL, roots: [URL] = AppInventory.roots) throws {
+        guard let saved = try savedApp(in: folder), !saved.deleting else { throw CleanupError.changed }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let record = try decoder.decode(RecoveryRecord.self,
+                                        from: Data(contentsOf: folder.appendingPathComponent("recovery.json")))
+        let installed = try approvedApp(saved.source, roots: roots)
+        try checkWritable(installed)
+        try checkRunning(installed)
+        let code = try signedCode(installed)
+        var requirement: SecRequirement?
+        guard SecCodeCopyDesignatedRequirement(code, [], &requirement) == errSecSuccess, let requirement
+        else { throw CleanupError.signature }
+        _ = try signedCode(saved.payload, requirement: requirement)
+        guard let old = Scanner.metadata(saved.payload), let active = Scanner.metadata(installed),
+              old.st_dev == record.original.device, old.st_ino == record.original.inode,
+              active.st_dev == record.replacement.device, active.st_ino == record.replacement.inode,
+              active.st_mtimespec.tv_sec == record.replacement.modified,
+              active.st_mtimespec.tv_nsec == record.replacement.nanoseconds else { throw CleanupError.changed }
+        try checkRunning(installed)
+        try exchangeBundles(installed, saved.payload)
+        var trashed: NSURL?
+        do {
+            guard let displaced = Scanner.metadata(saved.payload), displaced.st_dev == record.replacement.device,
+                  displaced.st_ino == record.replacement.inode else { throw CleanupError.changed }
+            try FileManager.default.trashItem(at: saved.payload, resultingItemURL: &trashed)
+        } catch {
+            throw NSError(domain: "Diskfolio", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Original restored. The displaced copy is still at \(saved.payload.path)."
+            ])
+        }
     }
 
     static func prepare(
@@ -149,9 +208,9 @@ enum Cleanup {
         do {
             try FileManager.default.removeItem(at: plan.staged)
             try? FileManager.default.removeItem(at: plan.workspace)
-            return CleanupReceipt(bytes: plan.bytes.total, backup: nil, warning: nil)
+            return CleanupReceipt(app: plan.original, bytes: plan.bytes.total, backup: nil, warning: nil)
         } catch {
-            return CleanupReceipt(bytes: plan.bytes.total, backup: plan.staged,
+            return CleanupReceipt(app: plan.original, bytes: plan.bytes.total, backup: plan.staged,
                                   warning: "The original could not be fully discarded. Its remaining files are in Staging.")
         }
     }
@@ -189,12 +248,12 @@ enum Cleanup {
         let destination = plan.recovery.appendingPathComponent(plan.workspace.lastPathComponent, isDirectory: true)
         do {
             try FileManager.default.moveItem(at: plan.workspace, to: destination)
-            return CleanupReceipt(bytes: bytes,
+            return CleanupReceipt(app: plan.original, bytes: bytes,
                                   backup: destination.appendingPathComponent(plan.staged.lastPathComponent),
                                   warning: warning)
         } catch {
             let locationWarning = "The displaced copy remains in Staging."
-            return CleanupReceipt(bytes: bytes, backup: plan.staged,
+            return CleanupReceipt(app: plan.original, bytes: bytes, backup: plan.staged,
                                   warning: warning.map { "\($0) \(locationWarning)" } ?? locationWarning)
         }
     }

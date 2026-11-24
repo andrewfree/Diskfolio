@@ -69,6 +69,7 @@ private struct InventoryView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showAll = false
     @State private var showsCaches = false
+    @State private var showsHistory = false
     @State private var lastCleanup: CleanupBatchResult?
 
     var body: some View {
@@ -113,6 +114,7 @@ private struct InventoryView: View {
             }
         }
         .sheet(isPresented: $showsCaches) { CacheCleanupView() }
+        .sheet(isPresented: $showsHistory) { CleanupHistoryView() }
         .background(ink)
         .foregroundStyle(light)
         .font(.system(size: 13))
@@ -134,6 +136,11 @@ private struct InventoryView: View {
                 Label("App Caches", systemImage: "folder")
             }.buttonStyle(.bordered)
             Button {
+                showsHistory = true
+            } label: {
+                Label("History & Recovery", systemImage: "clock.arrow.circlepath")
+            }.buttonStyle(.bordered)
+            Button {
                 model.rescan()
             } label: {
                 Label("Rescan", systemImage: "arrow.clockwise")
@@ -142,7 +149,7 @@ private struct InventoryView: View {
             Button {
                 model.showsCleanup = true
             } label: {
-                Label("Free Space", systemImage: "internaldrive")
+                Label("Review App Size", systemImage: "internaldrive")
             }
             .buttonStyle(.borderedProminent)
             .tint(mint)
