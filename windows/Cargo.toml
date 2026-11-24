@@ -1,11 +1,11 @@
 [package]
 name = "diskfolio-windows"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 
 [target.'cfg(windows)'.dependencies]
-native-windows-gui = { version = "1.0.13", default-features = false, features = ["listbox", "notice"] }
+native-windows-gui = { version = "1.0.13", default-features = false, features = ["listbox", "notice", "textbox"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
