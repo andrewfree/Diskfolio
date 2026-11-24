@@ -71,6 +71,19 @@ Cleanup previews by default. `--apply` replaces eligible apps and keeps recovery
 - [`Sources/CleanupBatch.swift`](Sources/CleanupBatch.swift) handles batch preview, replacement, and per-app results.
 - [`tests/`](tests/) contains the disposable test harnesses.
 
+## Windows edition
+
+The Rust desktop app is in [`windows/`](windows/). It previews caches for Chrome, Edge, Brave, and VS Code on Windows. Select a folder, quit its app, and confirm **Move to recovery**. Use **Recovery** to restore it if its original location is free. To reclaim space, open the recovery folder and remove copies you no longer need.
+
+To build on Windows 11 x64, use a Rust stable toolchain and the Visual Studio C++ build tools from an x64 developer command prompt.
+
+```powershell
+cargo test --locked --manifest-path windows/Cargo.toml
+cargo build --release --locked --manifest-path windows/Cargo.toml
+```
+
+The executable is `windows/target/release/diskfolio-windows.exe`.
+
 ## License
 
 Diskfolio is available under the [MIT License](LICENSE).

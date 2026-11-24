@@ -3,3 +3,5 @@
 /site/downloads/
 __pycache__/
 *.pyc
+
+/windows/target/
