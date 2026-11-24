@@ -1,6 +1,6 @@
 # Diskfolio
 
-Diskfolio is a native macOS utility for removing extra Intel slices and unused translations from installed apps. It shows what passed a cleanup preview before you decide whether to replace anything.
+Diskfolio is a native macOS utility for removing extra Intel slices and unused translations from installed apps. It also previews app caches before moving selected folders to the Trash.
 
 ## Build and test
 
@@ -12,7 +12,7 @@ Use an Apple Silicon Mac running macOS 13 or later, Xcode or the Xcode Command L
 open build/Diskfolio.app
 ```
 
-The build script creates an ad hoc signed app and a ZIP under `site/downloads/`. This repository is distributed as source. The local build has no Developer ID signature or notarization.
+The build script creates an ad hoc signed app and a ZIP under `site/downloads/`. The local build uses ad hoc signing. The release package is built separately with Developer ID signing and notarization.
 
 The tests create disposable signed apps under `build/` and run the scanner, CLI, and replacement engine against those fixtures. They do not use your installed apps. The site in [`site/`](site/) is a static demo with sample data.
 
@@ -32,6 +32,10 @@ If you used a development build, add the new Diskfolio app to App Management whe
 Language choices reflect the current account and app settings. On a shared Mac, another account may need languages you have selected for removal. Architecture cleanup can remove Rosetta support from a universal app. Some app updaters may reject modified bundles or restore removed resources on update.
 
 The preview reports logical file content, and preparing copies uses temporary disk space. APFS sharing, compression, and snapshots affect how much storage is reclaimed. Keeping an original retains its data and may increase disk usage while both copies exist.
+
+## Clean app caches
+
+Choose **App Caches** to review recognized cache folders for Chrome, Edge, Brave, and VS Code. Quit the apps you want to clean, select their caches, and confirm **Move to Trash**. Diskfolio rechecks the reviewed folders before moving them. Check the Trash if you need a folder back. The listed sizes describe the selected files, and the folders still occupy space until the Trash is emptied.
 
 ## Restore an original
 

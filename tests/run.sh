@@ -50,10 +50,10 @@ codesign --verify --strict --deep "$mixed"
 compile() {
     xcrun swiftc -target arm64-apple-macos13.0 -swift-version 5 -parse-as-library \
         Sources/Scan.swift Sources/Inventory.swift Sources/Model.swift Sources/Cleanup.swift \
-        Sources/CleanupBatch.swift Sources/CleanupCommand.swift Sources/AppManagement.swift \
+        Sources/CleanupBatch.swift Sources/CleanupCommand.swift Sources/AppManagement.swift Sources/CacheCleanup.swift \
         "tests/$1.swift" -o "$work/$1"
 }
-for test in VerifyInventory VerifyReplacement VerifyCleanupBatch VerifyBatchPermissions VerifyCleanupCommand; do
+for test in VerifyInventory VerifyReplacement VerifyCleanupBatch VerifyBatchPermissions VerifyCleanupCommand VerifyCacheCleanup; do
     compile "$test"
 done
 inventory="$work/Inventory Fixture"
@@ -76,4 +76,6 @@ test -f "$resource"
 "$work/VerifyCleanupCommand" "$cli" cleanup --all --languages-only --apply -AppleLanguages '(en-US)'
 test ! -e "$resource"
 codesign --verify --strict --deep "$cli/Fixture.app"
+mkdir "$work/Cache Fixture"
+"$work/VerifyCacheCleanup" "$work/Cache Fixture"
 printf '%s\n' 'All disposable fixture checks passed.'

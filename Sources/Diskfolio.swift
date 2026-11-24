@@ -68,6 +68,7 @@ private struct InventoryView: View {
     @ObservedObject var model: InventoryModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showAll = false
+    @State private var showsCaches = false
     @State private var lastCleanup: CleanupBatchResult?
 
     var body: some View {
@@ -111,6 +112,7 @@ private struct InventoryView: View {
                 }
             }
         }
+        .sheet(isPresented: $showsCaches) { CacheCleanupView() }
         .background(ink)
         .foregroundStyle(light)
         .font(.system(size: 13))
@@ -126,6 +128,11 @@ private struct InventoryView: View {
                 .accessibilityHidden(true)
             Text("Diskfolio").font(.system(size: 18, weight: .semibold, design: .rounded))
             Spacer()
+            Button {
+                showsCaches = true
+            } label: {
+                Label("App Caches", systemImage: "folder")
+            }.buttonStyle(.bordered)
             Button {
                 model.rescan()
             } label: {
